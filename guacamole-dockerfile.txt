@@ -1,0 +1,39 @@
+FROM guacamole/guacamole:1.5.4
+
+# Variables de build pour les versions des extensions
+ARG GUAC_VERSION=1.5.4
+
+# Installation des dépendances
+USER root
+RUN apt-get update && apt-get install -y \
+    wget \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Répertoire pour les extensions
+RUN mkdir -p /opt/guacamole/extensions
+
+# Téléchargement des extensions
+RUN wget -O /opt/guacamole/extensions/guacamole-auth-openid-${GUAC_VERSION}.jar \
+    "https://apache.org/dyn/closer.lua/guacamole/${GUAC_VERSION}/binary/guacamole-auth-openid-${GUAC_VERSION}.jar?action=download" \
+    && wget -O /opt/guacamole/extensions/guacamole-auth-ldap-${GUAC_VERSION}.jar \
+    "https://apache.org/dyn/closer.lua/guacamole/${GUAC_VERSION}/binary/guacamole-auth-ldap-${GUAC_VERSION}.jar?action=download" \
+    && wget -O /opt/guacamole/extensions/guacamole-auth-jdbc-postgresql-${GUAC_VERSION}.jar \
+    "https://apache.org/dyn/closer.lua/guacamole/${GUAC_VERSION}/binary/guacamole-auth-jdbc-postgresql-${GUAC_VERSION}.jar?action=download"
+
+# Script d'initialisation personnalisé
+COPY docker-entrypoint.sh /docker-entrypoint-custom.sh
+RUN chmod +x /docker-entrypoint-custom.sh
+
+# Copie des fichiers de configuration
+COPY logback.xml /etc/guacamole/logback.xml
+COPY guacamole.properties.template /etc/guacamole/guacamole.properties.template
+
+# Configuration des permissions
+RUN chown -R guacamole:guacamole /opt/guacamole/extensions \
+    && chown -R guacamole:guacamole /etc/guacamole
+
+USER guacamole
+
+# Point d'entrée personnalisé
+ENTRYPOINT ["/docker-entrypoint-custom.sh"]

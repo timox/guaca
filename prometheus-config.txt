@@ -1,0 +1,62 @@
+# Configuration Prometheus pour monitoring Guacamole
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'guacamole-monitor'
+
+# Configuration des alertes
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Règles d'alertes
+rule_files:
+  - "alerts.yml"
+
+# Configuration des targets à scraper
+scrape_configs:
+  # Monitoring Prometheus lui-même
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+
+  # Monitoring JMX Guacamole (via JMX Exporter)
+  - job_name: 'guacamole-jmx'
+    static_configs:
+      - targets: ['guacamole:9090']
+        labels:
+          service: 'guacamole'
+          component: 'jmx'
+    metrics_path: '/metrics'
+
+  # Monitoring PostgreSQL (nécessite postgres_exporter)
+  - job_name: 'postgresql'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+        labels:
+          service: 'postgresql'
+          database: 'guacamole'
+
+  # Monitoring Node Exporter pour métriques système
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          service: 'system'
+
+  # Monitoring Docker containers (nécessite cAdvisor)
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          service: 'docker'
+
+# Configuration des métriques à conserver
+metric_relabel_configs:
+  - source_labels: [__name__]
+    regex: 'jvm_.*|java_.*|tomcat_.*|jdbc_.*|guacamole_.*'
+    action: keep
